@@ -1,92 +1,123 @@
 <template>
-  <header class="header-container">
-    <div class="header-maxwidth">
-        <div class="div-right">
-            <img alt="Logo" src="https://www.dongdu.studyarts.vn/static/images/logo-jp.png"/>
-            <div class="header-search">
-                <input class="input-search" placeholder="Nhập Từ Khóa"/>
-                <div>
-                    <span>Tìm kiếm</span>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container-fluid">
+                <button @click="toggleSidebar" type="button" id="sidebarCollapse" class="btn btn-info">
+                    <i class="fas fa-align-left text-white"></i>
+                </button>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ml-auto align-items-center">
+                        <li v-if="!isLoggedIn" class="nav-item">
+                            <a class="nav-link" href="/login">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="15" width="15" viewBox="0 0 512 512">
+                                    <path
+                                        d="M217.9 105.9L340.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L217.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1L32 320c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM352 416l64 0c17.7 0 32-14.3 32-32l0-256c0-17.7-14.3-32-32-32l-64 0c-17.7 0-32-14.3-32-32s14.3-32 32-32l64 0c53 0 96 43 96 96l0 256c0 53-43 96-96 96l-64 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z" />
+                                </svg>
+                                Đăng Nhập
+                            </a>
+                        </li>
+                        <li v-else class="nav-item dropdown">
+                            <link class="name-color">{{ user.fullName }}</link>
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <img src="https://i.pinimg.com/564x/0b/2b/52/0b2b527a5d4ad76e7ee6115e895afac2.jpg"
+                                    class="rounded-circle avatar" alt="User Avatar">
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="#">Thông tin cá nhân</a>
+                                <div class="dropdown-divider"></div>
+                                <p class="dropdown-item" @click="handleLogout">Đăng xuất</p>
+                            </div>
+                        </li>
+                    </ul>
                 </div>
             </div>
-        </div>
-        <div class="div-left">
-            <div>
-                <router-link to="">
-                <span>
-                        Đăng nhập
-                    </span>
-                    <fa icon="right-to-bracket"/>
-                </router-link>
-            </div>
-        </div>
-    </div>
-  </header>
+        </nav>
+    </header>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import axios from 'axios';
+import { inject, ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { toast } from 'vue3-toastify';
 
+const router = useRouter();
+const toggleSidebar = inject('toggleSidebar');
+const isLoggedIn = ref(false);
+const user = ref({ fullName: '' });
 
+onMounted(() => {
+    checkLoginStatus();
+});
+
+const checkLoginStatus = async () => {
+    const accessToken = localStorage.getItem("accessToken");
+    isLoggedIn.value = !!accessToken;
+
+    if (isLoggedIn.value) {
+        try {
+            const response = await axios.get("http://localhost:8181/api/v1/users/me", {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+            user.value = response.data.result;
+        } catch (error) {
+            console.error( error);
+        }
+    }
+};
+
+const handleLogout = async () => {
+    try {
+        const accessToken = localStorage.getItem("accessToken");
+        localStorage.clear();
+        router.push("/login").then(() => {
+            toast.success("Đăng xuất thành công!", {
+                autoClose: 1200
+            });
+        });
+        await axios.get("http://localhost:8181/api/v1/auth/logout", {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        isLoggedIn.value = false;
+    } catch (err) {
+        console.log(err);
+    }
+};
 </script>
 
 <style scoped>
-.header-container {
-    background-color: #1d44f2;
-    width: 100%;
-    height: 50px;
-}
-
-.header-maxwidth {
-    width: 60%;
-    margin: 0 auto;
-    display: flex;
-    height: 50px;
-}
-
-.div-right {
-    display: flex;
-    width: 50%;
-    justify-content: space-between;
-    padding: 5px 0;
-}
-
-
-.header-search {
-    display: flex;
-    min-width: 80%;
-}
-.input-search {
-    height: 38px;
+.navbar {
+    padding: 15px 10px;
+    background: #fff;
     border: none;
-    border-radius: 20px 0 0 20px;
-    width: 65%;
-    padding-left: 15px;
-    outline: none;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.header-search div {
-    border-radius: 0 20px 20px 0;
-    color: #fff;
-    background-color: #66bad6;
-    width: 30%;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.navbar-btn {
+    box-shadow: none;
+    outline: none !important;
+    border: none;
 }
 
-.div-left {
-    width: 50%;
-    display: flex;
-    justify-content: end;
-    align-items: center;
-    color: #fff;
+.avatar {
+    width: 40px;
+    height: 40px;
 }
 
-.div-left div a {
-    text-decoration: none;
-    color: #fff;
+.nav-item .dropdown-menu {
+    min-width: 150px;
 }
 
+.dropdown-item {
+    cursor: pointer;
+}
 </style>
