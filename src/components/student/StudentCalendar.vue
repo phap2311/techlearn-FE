@@ -17,36 +17,27 @@
           <h5 class="card-title mb-4">Tìm kiếm lịch</h5>
           <form @submit.prevent="searchCalendar" class="calendar-search-form">
             <div class="row g-3 align-items-end">
-              <div class="col-md-3">
-                <label class="form-label" for="course">Khóa học</label>
-                <select class="form-select" name="course" v-model="course" @change="onCourseChange">
-                  <option :value="null" disabled selected hidden>Chọn Khóa học</option>
-                  <option class="modify-option" v-for="course in listCourse" :key="course.id" :value="course">
-                    {{ course.name }}
-                  </option>
-                </select>
-                <small class="text-danger">{{ courseError }}</small>
-              </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <label class="form-label" for="chapter">Chương</label>
-                <select class="form-select" id="chapter" v-model="chapter" @change="onChuongChange">
+                <select class="form-select" id="chapter" v-model="chapter" @change="onChapterChange">
                   <option :value="null" disabled selected hidden>Chọn chương</option>
-                  <option class="modify-option" v-for="chapter in listChapters" :key="chapter.id" :value="chapter">
-                    {{ chapter.name }}
+                  <option class="modify-option" v-for="chap in listChapters" :key="chap.id" :value="chap">
+                    {{ chap.name }}
                   </option>
                 </select>
                 <small class="text-danger">{{ chapterError }}</small>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <label class="form-label" for="teacher">Giảng viên</label>
                 <select class="form-select" id="teacher" v-model="teacher">
                   <option :value="null" selected>Chọn giảng viên</option>
-                  <option class="modify-option" v-for="teacher in teachers" :key="teacher.Id" :value="teacher">
-                    {{ teacher.OwnerText }}
+                  <option class="modify-option" v-for="teach in teachers" :key="teach.Id" :value="teach">
+                    {{ teach.OwnerText }}
                   </option>
                 </select>
+                <small class="text-danger">{{ teacherError }}</small>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <button type="submit" class="btn btn-primary w-100">
                   <i class="fas fa-filter"></i> &nbsp; Lọc
                 </button>
@@ -58,13 +49,14 @@
 
       <div class="card">
         <div class="card-body">
-          <Calendar :url="stateButtonFormStudent ? url : urlCalendarOfStudent" :clickable="isFilterApplied"
-            :calendarType="stateButtonFormStudent ? 'other' : 'mine'" :ownerId="stateButtonFormStudent ? ownerId : ''" />
+          <Calendar :url="url" :clickable="isFilterApplied"
+            :calendarType="stateButtonFormStudent ? 'other' : 'mine'" :ownerId="ownerId" />
         </div>
       </div>
     </div>
   </div>
 </template>
+
 
 <script setup>
 import axios from 'axios';
@@ -74,163 +66,110 @@ import { toast } from 'vue3-toastify';
 import * as yup from 'yup';
 import Calendar from '../Calendar/Calendar.vue';
 import { useStore } from 'vuex';
-
+import { useRoute } from 'vue-router';
 const rootApi = process.env.VUE_APP_ROOT_API;
 const store = useStore();
 
 const stateButtonFormStudent = ref(false);
 const accessToken = localStorage.getItem("accessToken");
-
+const calendarUrl = ref();
 const { handleSubmit, resetForm } = useForm({
-    initialValues: {
-        course: null,
-        chapter: null,
-        teacher: null,
-    },
-    validationSchema: yup.object({
-        course: yup
-            .object().nullable()
-            .required('*bắt buộc'),
-        chapter: yup
-            .object().nullable()
-            .required('*bắt buộc'),
-    }),
+  initialValues: {
+    chapter: null,
+    teacher: null,
+  },
+  validationSchema: yup.object({
+    chapter: yup
+      .object().nullable()
+      .required('*bắt buộc'),
+      teacher: yup
+      .object().nullable()
+      .required('*bắt buộc')
+  }),
 });
 
-const { value: course, errorMessage: courseError } = useField('course');
 const { value: chapter, errorMessage: chapterError } = useField('chapter');
 const { value: teacher, errorMessage: teacherError } = useField('teacher');
 const url = ref("");
 const urlCalendarOfStudent = ref("");
 const teachers = ref([]);
 const ownerId = ref();
-const listCourse = ref([]);
 const listChapters = ref([]);
 const user = computed(() => store.getters.user);
 const isFilterApplied = ref(false);
+const route = useRoute();
+const courseId = route.params.id;
 
 const toggleCalendarForm = () => {
-    stateButtonFormStudent.value = !stateButtonFormStudent.value;
+  stateButtonFormStudent.value = !stateButtonFormStudent.value;
+  console.log(stateButtonFormStudent.value);
+  
 };
 
 const getAllCalendars = () => {
-    urlCalendarOfStudent.value = `${rootApi}/student/${user.value.id}/calendar`;
+  urlCalendarOfStudent.value = `${rootApi}/student/${user.value.id}/calendar`;
 };
 
-const onCourseChange = async () => {
-    await getChapters();
-    await getTeachers();
-}
 
 const getChapters = async () => {
-    try {
-        const res = await axios.get(`${rootApi}/chapters?idCourse=${course._value.id}`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-        listChapters.value = res.data.result.items.data;
-    } catch (error) {
-        console.log(error);
-    }
+  try {
+    const res = await axios.get(`${rootApi}/chapters?idCourse=${courseId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    listChapters.value = res.data.result.data;
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 const getTeachers = async () => {
-    try {
-        const res = await axios.get(`${rootApi}/teachers/course/${course.value.id}`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-        teachers.value = res.data.result;
-    } catch (error) {
-        console.error("Error fetching teachers:", error);
-        toast.error("Không thể lấy danh sách giảng viên");
-    }
+  try {
+    const res = await axios.get(`${rootApi}/teachers/course/${courseId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    teachers.value = res.data.result;
+  } catch (error) {
+    console.error("Error fetching teachers:", error);
+    toast.error("Không thể lấy danh sách giảng viên");
+  }
 };
 
 const searchCalendar = handleSubmit(async (formData) => {
 
-    try {
-        isFilterApplied.value = true;
-        const { course, chapter, teacher } = formData;
-
-        if (teacher === null) {
-            url.value = `${rootApi}/teacher/calendar/${course.id}/chapter/${chapter.id}/`;
-        } else {
-            url.value = `${rootApi}/teacher/${teacher.Id}/calendar`;
-            ownerId.value = teacher.Id;
-        }
-
-    } catch (error) {
-        isFilterApplied.value = false;
-        toast.error("Không có khung giờ giảng viên!");
-    }
+  try {
+    
+    isFilterApplied.value = true;
+    const { chapter, teacher } = formData;
+      url.value = `${rootApi}/teacher/${teacher.Id}/calendar`;
+      ownerId.value = teacher.Id;
+  } catch (error) {
+    isFilterApplied.value = false;
+    toast.error("Không có khung giờ giảng viên!");
+  }
 });
 
-const fetchCoursesByUser = async () => {
-    try {
-        const res = await axios.get(`${rootApi}/courses`, {
-            params: { id: user.value.id, page: 1, pageSize: 10 },
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-
-        if (res.status === 200) {
-            listCourse.value = res.data.result.items.data;
-        } else {
-            console.error("Error fetching courses");
-            toast.error("Không thể lấy danh sách khóa học");
-        }
-    } catch (error) {
-        console.error("Error fetching courses:", error);
-        toast.error("Lỗi khi lấy danh sách khóa học");
-    }
-};
-
-const fetchChaptersByCourseId = async (courseId) => {
-    try {
-        const res = await axios.get(`${rootApi}/chapters`, {
-            params: { idCourse: courseId },
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-
-        if (res.status === 200) {
-            listChapters.value = res.data.result.items.data;
-        } else {
-            console.error("Error fetching chapters");
-            toast.error("Không thể lấy danh sách chương");
-        }
-    } catch (error) {
-        console.error("Error fetching chapters:", error);
-        toast.error("Lỗi khi lấy danh sách chương");
-    }
-};
-
-watch(course, (newCourse) => {
-    if (newCourse) {
-        const selectedCourse = listCourse.value.find(c => c.name === newCourse);
-        if (selectedCourse) {
-            fetchChaptersByCourseId(selectedCourse.id);
-        }
-    }
-});
 
 watch(user, (newUser) => {
     if (newUser) {
-        fetchCoursesByUser();
+       getChapters();
+       getTeachers();
     }
 }, { immediate: true });
 
 onMounted(() => {
-    if (!store.getters.isLoggedIn) {
-        store.dispatch('fetchUser');
-    }
+  if (!store.getters.isLoggedIn) {
+    store.dispatch('fetchUser');
+  }
 
-    watch(user, (newUser) => {
-        if (newUser) {
-            getAllCalendars();
-        }
-    }, { immediate: true });
+  watch(user, (newUser) => {
+    if (newUser) {
+      getAllCalendars();
+    }
+  }, { immediate: true });
 });
 
 </script>

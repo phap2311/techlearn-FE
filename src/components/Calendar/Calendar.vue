@@ -1,9 +1,10 @@
 <template>
   <div class="relative">
 
-    <ejs-schedule height="750px" width="100%" ref='scheduleObj' :selectedDate="selectedDate" :eventSettings="eventSettings"
+    <ejs-schedule id="Schedule" height="750px" width="100%" ref='scheduleObj' :selectedDate="selectedDate" :eventSettings="eventSettings"
       :actionBegin="onActionBegin" class="calendar" :editorTemplate="'editorTemplate'" :eventRendered="onEventRendered" :popupOpen="popupOpen"
-      :startHour="startHour" :endHour="endHour" :timeScale="timeScale">
+      :startHour="startHour" :endHour="endHour" :timeScale="timeScale" :allowResizing="true" :allowMultiCellSelection="true"
+      :allowMultiRowSelection="true">
       <template v-slot:editorTemplate>
         <table class="custom-event-editor" width="100%" cellpadding="5">
           <tbody>
@@ -60,17 +61,17 @@
       <div class="loader"></div>
     </div>
   </div>
-  <loading :active="isLoading" :is-full-page="true" />
+  <loading :active.sync="isLoading" :can-cancel="false" :is-full-page="false" loader="bars"></loading>
 </template>
 
 <script setup>
 import { onMounted, provide, ref, nextTick } from "vue";
 import {
   ScheduleComponent as EjsSchedule, ViewsDirective as EViews, ViewDirective as EView, ResourcesDirective as EResources, ResourceDirective as EResource,
-  Day, Week, WorkWeek, Month, Agenda, DragAndDrop
+  Day, Week, WorkWeek, Month, Agenda, DragAndDrop, Resize
 } from "@syncfusion/ej2-vue-schedule";
-import { DataManager, WebApiAdaptor } from "@syncfusion/ej2-data";
-import axios from "axios";
+import { DataManager, ODataV4Adaptor, WebApiAdaptor } from "@syncfusion/ej2-data";
+import axios, { all } from "axios";
 import { DropDownListComponent as ejsDropdownlist } from "@syncfusion/ej2-vue-dropdowns";
 import { DateTimePickerComponent as ejsDatetimepicker } from "@syncfusion/ej2-vue-calendars";
 import { toast } from 'vue3-toastify';
@@ -83,7 +84,7 @@ import frtimeZoneData from '@syncfusion/ej2-cldr-data/main/vi/timeZoneNames.json
 import frGregorian from '@syncfusion/ej2-cldr-data/main/vi/ca-gregorian.json';
 import frNumberingSystem from '@syncfusion/ej2-cldr-data/supplemental/numberingSystems.json';
 import Loading from 'vue-loading-overlay';
-import 'vue-loading-overlay/dist/css/index.css';
+import 'vue-loading-overlay/dist/vue-loading.css';
 import { useStore } from "vuex";
 import { computed } from "vue";
 
@@ -114,23 +115,30 @@ const selectedOwnerId = ref(null);
 setCulture('vi');
 L10n.load(viLocale)
 loadCldr(frNumberData, frtimeZoneData, frGregorian, frNumberingSystem);
-provide("schedule", [Day, Week, WorkWeek, Month, Agenda, DragAndDrop]);
+provide("schedule", [Day, Week, WorkWeek, Month, Agenda, DragAndDrop, Resize]);
 const accessToken = localStorage.getItem("accessToken");
 
 const remoteData = new DataManager({
   url: `${props.url}`,
-  adaptor: new WebApiAdaptor,
+  adaptor: new WebApiAdaptor(),
   crossDomain: true,
   headers: [{
     Authorization: `Bearer ${accessToken}`
-  }]
+  }],
 });
 
 const scheduleObj = ref(null);
 const selectedDate = new Date();
 const ownerDataSource = ref([]);
 const eventSettings = ref({
-  dataSource: remoteData
+  dataSource: remoteData,
+  allowAdding: true,
+  allowDeleting: true,
+  allowEditing: true,
+  batch: false,
+  enableTooltip: true,
+  allowResizing: true,
+  allowDragAndDrop: true,
 });
 
 const store = useStore();
@@ -155,7 +163,6 @@ const getOwnerDataSource = async () => {
   const res = await axios.get(`${rootApi}/teachers/`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`
-
     }
   });
   ownerDataSource.value = res.data;
@@ -173,7 +180,8 @@ const getEvent = async () => {
       }
     });
     eventSettings.value = {
-      dataSource: res.data
+      ...eventSettings.value,
+      dataSource: response.data
     };
   } catch (error) {
     console.error('Error fetching events:', error);
@@ -199,13 +207,29 @@ const onEventRendered = (args) => {
         subjectText = subjectText.substring(0, 17) + '...';
       }
 
+      const options = {
+        timeZone: 'Asia/Bangkok',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      };
+      const startTime = new Date(args.data.StartTime).toLocaleString('en-US', options);
+      const endTime = new Date(args.data.EndTime).toLocaleString('en-US', options);
+
       args.element.innerHTML = `
-        <div class="d-flex align-items-center h-100 overflow-hidden">
-          ${avatarHtml}
-          <div class="text-truncate" style="max-width: ${availableWidth}px;">${subjectText}</div>
+        <div class="d-flex flex-column h-100 overflow-hidden p-1">
+          <div class="d-flex align-items-center">
+            ${avatarHtml}
+            <div class="text-truncate" style="max-width: ${availableWidth}px;">
+              <div class="e-subject text-truncate">${subjectText}</div>
+              <div class="e-time text-truncate small">
+                ${startTime} - ${endTime}
+              </div>
+            </div>
+          </div>
         </div>`;
 
-      args.element.title = args.data.Subject;
+      args.element.title = `${args.data.Subject}\n${startTime} - ${endTime}`;
     }
   }
 };
@@ -230,10 +254,10 @@ const onActionBegin = async (args) => {
         EndTimezone: 'Asia/Bangkok',
       };
 
-      if (window.location.href.includes('student') && props.calendarType === 'other') {
+      if ( props.calendarType === 'other') {
         isLoading.value = true;
         isStudentBooking.value = true;
-
+            
         await axios.post(`${rootApi}/student/${user.value.id}/calendar`, {
           ...formattedEventData,
           UserId: user.value.id,
@@ -257,12 +281,11 @@ const onActionBegin = async (args) => {
         return;
       }
       else if (props.url.includes('teacher')) {
-        await axios.post(`${props.url}`, {
-          ...formattedEventData,
-          status: "BUSY"
-        }, {
+        const response = await axios.post(`${rootApi}/teacher/${props.ownerId}/calendar`, formattedEventData, {
           headers: {
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         });
 
@@ -284,6 +307,17 @@ const onActionBegin = async (args) => {
     }
   } else if (args.requestType === 'eventRemove') {
     try {
+      const eventStartTime = new Date(args.data[0].StartTime);
+      const currentTime = new Date();
+      const timeDifference = (eventStartTime - currentTime) / (1000 * 60);
+
+      if (timeDifference <= 10 && timeDifference >= 0) {
+        toast.error('Không thể hủy lịch trong vòng 10 phút trước khi bắt đầu!', {
+          autoClose: 1000
+        });
+        return;
+      }
+
       isLoading.value = true;
       await axios.delete(`${props.url}/${args.data[0].Id}`, {
         headers: {
@@ -303,33 +337,45 @@ const onActionBegin = async (args) => {
     } catch (error) {
       console.error('Error deleting event:', error);
       toast.error('Không thể xóa sự kiện!', {
-        autoClose: 1200
+        autoClose: 1000
       });
 
       isLoading.value = false;
     }
   } else if (args.requestType === 'eventChange') {
-    try {
-      let formattedEventData = {
-        ...args.data,
-        StartTime: formatDate(args.data.StartTime),
-        EndTime: formatDate(args.data.EndTime),
-      };
-      await axios.put(`${props.url}/${formattedEventData.Id}`, formattedEventData, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-      toast.success('Cập nhật lịch thành công!', {
-        autoClose: 1200
-      });
-    } catch (error) {
-      toast.error('Cập nhật lịch thất bại!', {
-        autoClose: 1200
-      });
-    } finally {
-      isLoading.value = false;
-      isStudentBooking.value = false;
+    if (args.data && args.data.Id) {
+      try {
+        let formattedEventData = {
+          ...args.data,
+          StartTime: formatDate(args.data.StartTime),
+          EndTime: formatDate(args.data.EndTime),
+          StartTimezone: 'Asia/Bangkok',
+          EndTimezone: 'Asia/Bangkok',
+        };
+
+        const response = await axios.put(`${props.url}/${formattedEventData.Id}`, formattedEventData, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+
+        toast.success('Cập nhật lịch thành công!', {
+          autoClose: 1000
+        });
+
+        scheduleObj.value.refreshEvents();
+
+        return;
+      } catch (error) {
+        toast.error('Cập nhật lịch thất bại!', {
+          autoClose: 1000
+        });
+      } finally {
+        isLoading.value = false;
+        isStudentBooking.value = false;
+      }
     }
   }
 
@@ -401,6 +447,19 @@ const popupOpen = function (args) {
       if (!hasEvents) {
         args.cancel = true;
       }
+
+      const meetingUrl = args.data.MeetingUrl || 'Không có link học trực tuyến';
+
+      const popupElement = document.querySelector('.e-event-popup');
+
+      if (popupElement) {
+        const timezoneElement = popupElement.querySelector('.e-time-zone-details');
+
+        if (timezoneElement) {
+          timezoneElement.innerHTML = `<a href="${meetingUrl}" target="_blank">${meetingUrl}</a>`;
+        }
+      }
+
     } else if (isMineAndTeacher) {
       args.cancel = false;
     } else if (isOtherTypeAndTeacher) {
