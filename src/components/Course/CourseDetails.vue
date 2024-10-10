@@ -39,19 +39,6 @@
               }}
               {{ dataCourse.course.currencyUnit }}
             </p>
-            <div class="d-grid gap-2 d-md-block">
-              <button
-                class="btn btn-primary custom-button btn-buy w-40"
-                type="button"
-                @click="handleBuyCourse"
-                :disabled="isLoadingBuy"
-              >
-                <span v-if="isLoadingBuy">
-                  <div class="spinner"></div>
-                </span>
-                <span v-else>Mua</span>
-              </button>
-            </div>
           </div>
           <div v-if="isOtherStatus">
             <p class="title">
@@ -64,7 +51,20 @@
               }}
               {{ dataCourse.course.currencyUnit }}
             </p>
-            <div class="d-grid gap-2 d-md-block">
+            <div class="d-grid gap-2 d-md-block" v-if="studentCourse?.status === ''">
+              <button
+                class="btn btn-primary custom-button btn-buy w-40"
+                type="button"
+                @click="handleRegisterCourse"
+                :disabled="isLoadingBuy"
+              >
+                <!-- <span v-if="isLoadingBuy">
+                  <div class="spinner"></div>
+                </span> -->
+                <span >Đăng ký học thử </span>
+              </button>
+            </div>
+            <!-- <div class="d-grid gap-2 d-md-block">
               <button
                 class="btn btn-primary custom-button btn-buy w-40"
                 type="button"
@@ -76,18 +76,14 @@
                 </span>
                 <span v-else>Mua</span>
               </button>
-              <button
-                class="btn btn-primary custom-button btn-try w-40"
-                type="button"
-                @click="handleRegisterCourse"
-                :disabled="isLoadingTrial"
-              >
+              <button class="btn btn-primary custom-button btn-try w-40" type="button" @click="handleRegisterCourse"
+                :disabled="isLoadingTrial">
                 <span v-if="isLoadingTrial">
                   <div class="spinner"></div>
                 </span>
                 <span v-else>Đăng kí dùng thử</span>
               </button>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>
@@ -101,21 +97,12 @@
       </div>
       <div class="content-body mt-3">
         <div id="accordion">
-          <div
-            class="card body-wrapper list-chapter"
-            v-for="(chapter, index) in filteredChapters"
-            :key="index"
-          >
+          <div class="card body-wrapper list-chapter" v-for="(chapter, index) in filteredChapters" :key="index">
             <div v-if="studentCourse.status === 'PAID'">
               <div class="card-header" :id="'heading' + index">
                 <h5 class="mb-0">
-                  <button
-                    class="btn chapter-title w-100 d-flex justify-content-left"
-                    type="button"
-                    data-toggle="collapse"
-                    :data-target="'#collapse' + index"
-                    :aria-controls="'collapse' + index"
-                  >
+                  <button class="btn chapter-title w-100 d-flex justify-content-left" type="button"
+                    data-toggle="collapse" :data-target="'#collapse' + index" :aria-controls="'collapse' + index">
                     <span>
                       <i class="fas fa-angle-down"></i>&nbsp;
                       <strong> {{ index + 1 }}.</strong> {{ chapter.name }}
@@ -123,23 +110,11 @@
                   </button>
                 </h5>
               </div>
-              <div
-                :id="'collapse' + index"
-                :class="index === 0 ? 'collapse show' : 'collapse'"
-                :aria-labelledby="'heading' + index"
-              >
+              <div :id="'collapse' + index" :class="index === 0 ? 'collapse show' : 'collapse'"
+                :aria-labelledby="'heading' + index">
                 <div v-for="(item, itemIndex) in lessons" :key="itemIndex">
-                  <div
-                    class="card-body assignment-card border-bottom"
-                    v-if="Number(item?.chapter) === Number(chapter?.id)"
-                    @click="
-                      router.push({
-                        name: 'submitAssignment',
-                        params: { id: item.id },
-                        query: { courseId: dataCourse.course.id },
-                      })
-                    "
-                  >
+                  <div class="card-body assignment-card border-bottom"
+                    v-if="Number(item?.chapter) === Number(chapter?.id)" @click="goToAssignmentDetail(item.id)">
                     <div class="assignment">
                       <p class="assignment-title">
                         {{ item.title }}
@@ -153,13 +128,9 @@
               <div v-if="chapter.isPublic === false">
                 <div class="card-header bg-col" :id="'heading' + index">
                   <h5 class="mb-0">
-                    <button
-                      class="btn chapter-title w-100 d-flex justify-content-between align-items-center"
-                      type="button"
-                      data-toggle="collapse"
-                      :data-target="'#collapse' + index"
-                      :aria-controls="'collapse' + index"
-                    >
+                    <button class="btn chapter-title w-100 d-flex justify-content-between align-items-center"
+                      type="button" data-toggle="collapse" :data-target="'#collapse' + index"
+                      :aria-controls="'collapse' + index">
                       <span>
                         <i class="fas fa-angle-down"></i>&nbsp;
                         <strong> {{ index + 1 }}.</strong> {{ chapter.name }}
@@ -168,20 +139,12 @@
                     </button>
                   </h5>
                 </div>
-                <div
-                  :id="'collapse' + index"
-                  :class="index === 0 ? 'collapse show' : 'collapse'"
-                  :aria-labelledby="'heading' + index"
-                >
+                <div :id="'collapse' + index" :class="index === 0 ? 'collapse show' : 'collapse'"
+                  :aria-labelledby="'heading' + index">
                   <div v-for="(item, itemIndex) in lessons" :key="itemIndex">
-                    <div
-                      class="card-body"
-                      v-if="Number(item?.chapter) === Number(chapter?.id)"
-                    >
-                      <div
-                        class="assignment d-flex justify-content-between align-items-center w-100"
-                        style="cursor: context-menu"
-                      >
+                    <div class="card-body" v-if="Number(item?.chapter) === Number(chapter?.id)">
+                      <div class="assignment d-flex justify-content-between align-items-center w-100"
+                        style="cursor: context-menu">
                         <p>
                           {{ item.title }}
                         </p>
@@ -194,13 +157,8 @@
               <div v-else>
                 <div class="card-header bg-col" :id="'heading' + index">
                   <h5 class="mb-0">
-                    <button
-                      class="btn chapter-title w-100 d-flex justify-content-left"
-                      type="button"
-                      data-toggle="collapse"
-                      :data-target="'#collapse' + index"
-                      :aria-controls="'collapse' + index"
-                    >
+                    <button class="btn chapter-title w-100 d-flex justify-content-left" type="button"
+                      data-toggle="collapse" :data-target="'#collapse' + index" :aria-controls="'collapse' + index">
                       <span>
                         <i class="fas fa-angle-down"></i>&nbsp;
                         <strong> {{ index + 1 }}.</strong> {{ chapter.name }}
@@ -208,23 +166,11 @@
                     </button>
                   </h5>
                 </div>
-                <div
-                  :id="'collapse' + index"
-                  :class="index === 0 ? 'collapse show' : 'collapse'"
-                  :aria-labelledby="'heading' + index"
-                >
+                <div :id="'collapse' + index" :class="index === 0 ? 'collapse show' : 'collapse'"
+                  :aria-labelledby="'heading' + index">
                   <div v-for="(item, itemIndex) in lessons" :key="itemIndex">
-                    <div
-                      class="card-body assignment-card border-bottom"
-                      v-if="Number(item?.chapter) === Number(chapter?.id)"
-                      @click="
-                        router.push({
-                          name: 'submitAssignment',
-                          params: { id: item.id },
-                          query: { courseId: dataCourse.course.id },
-                        })
-                      "
-                    >
+                    <div class="card-body assignment-card border-bottom"
+                      v-if="Number(item?.chapter) === Number(chapter?.id)" @click="goToAssignmentDetail(item.id)">
                       <div class="assignment">
                         <p class="assignment-title">
                           {{ item.title }}
@@ -266,7 +212,7 @@ const dataCourse = reactive({
   course: {},
 });
 
-const studentCourse = reactive({});
+const studentCourse = reactive({status:''});
 
 const totalLessons = ref(0);
 
@@ -306,14 +252,14 @@ const fetchLessons = async () => {
         title: titleUpdated,
       };
     });
-  } catch (error) {}
+  } catch (error) { }
 };
 
 const fetchCourse = async () => {
   try {
     const response = await axios.get(`${rootApi}/courses/${courseId}`);
     dataCourse.course = response.data.result.data;
-  } catch (error) {}
+  } catch (error) { }
 };
 
 const fetchStudentCourses = async () => {
@@ -327,8 +273,12 @@ const fetchStudentCourses = async () => {
     Object.assign(studentCourse, response.data.result);
   } catch (error) {
     console.error("Error when fetching student courses: ", error);
+    if (error.response && error.response.status === 400) {
+      Object.assign(studentCourse, { status: '' });
+    }
   }
 };
+
 
 const calculateTotalLessons = (chapters) => {
   return chapters ? chapters.length : 0;
@@ -362,6 +312,14 @@ const isOtherStatus = computed(
   () => studentCourse.status !== "TRIAL" && studentCourse.status !== "PAID"
 );
 
+const goToAssignmentDetail = (id) => {
+  router.push({
+    name: 'submitAssignment',
+    params: { id: id },
+    query: { studentCourse: JSON.stringify(studentCourse) }
+  });
+};
+
 onMounted(async () => {
   await Promise.all([
     fetchCourseData(),
@@ -371,27 +329,27 @@ onMounted(async () => {
   ]);
 });
 
-const handleBuyCourse = async () => {
-  try {
-    isLoadingBuy.value = true;
-    const response = await axios.post(
-      `${rootApi}/buy_course?idUser=${userID.value.id}&idCourse=${dataCourse.course.id}`
-    );
-    store.dispatch("fetchSupportPoints", userID.value.id);
-    toast.success("Mua khóa học thành công!!");
-    await Promise.all([
-      fetchCourseData(),
-      fetchLessons(),
-      fetchCourse(),
-      fetchStudentCourses(),
-    ]);
-  } catch (error) {
-    console.log(error);
-    toast.error("Có lỗi xảy ra");
-  } finally {
-    isLoadingBuy.value = false;
-  }
-};
+// const handleBuyCourse = async () => {
+//   try {
+//     isLoadingBuy.value = true;
+//     const response = await axios.post(
+//       `${rootApi}/buy_course?idUser=${userID.value.id}&idCourse=${dataCourse.course.id}`
+//     );
+//     store.dispatch("fetchSupportPoints", userID.value.id);
+//     toast.success("Mua khóa học thành công!!");
+//     await Promise.all([
+//       fetchCourseData(),
+//       fetchLessons(),
+//       fetchCourse(),
+//       fetchStudentCourses(),
+//     ]);
+//   } catch (error) {
+//     console.log(error);
+//     toast.error("Có lỗi xảy ra");
+//   } finally {
+//     isLoadingBuy.value = false;
+//   }
+// };
 
 const handleRegisterCourse = async () => {
   try {
@@ -400,7 +358,7 @@ const handleRegisterCourse = async () => {
       `${rootApi}/register_trials?idUser=${userID.value.id}&idCourse=${dataCourse.course.id}`
     );
     store.dispatch("fetchSupportPoints", userID.value.id);
-    toast.success("Đăng kí khóa học thành công!!");
+    toast.success("Đăng kí dùng thử khóa học thành công!!");
     await Promise.all([
       fetchCourseData(),
       fetchLessons(),
@@ -494,7 +452,7 @@ p {
   border: none;
 }
 
-.assignment-title {
+assignment-title {
   font-size: 16px;
   line-height: 30px;
 }
@@ -503,7 +461,7 @@ button.btn.chapter-title.collapsed:active {
   border: none;
 }
 
-button.btn.chapter-title.collapsed {
+.button.btn.chapter-title.collapsed {
   border: none;
 }
 
@@ -517,21 +475,24 @@ img {
   margin-bottom: 10px !important;
 }
 
-.custom-button {
+.custom-button.btn-buy.w-40 {
   width: 30%;
-  background-color: #add8e6;
-  border-color: #add8e6;
+  background-color: rgba(212, 28, 37, 0.541);
+  border-color: white;
   margin-right: 2rem;
+  color: rgba(0, 0, 0, 1);
 }
 
-.custom-button:hover {
-  background-color: #87ceeb;
-  border-color: #87ceeb;
+.custom-button.btn-buy.w-40:hover {
+  background-color: rgba(190, 47, 47, 0.651);
+  border-color: white;
+  color: white;
 }
 
 .bg-col {
   background-color: #e0e0e000 !important;
 }
+
 .spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-left: 4px solid white;

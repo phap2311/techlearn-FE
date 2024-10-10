@@ -102,7 +102,11 @@ const courseId = route.params.id;
 
 const toggleCalendarForm = () => {
   stateButtonFormStudent.value = !stateButtonFormStudent.value;
-  console.log(stateButtonFormStudent.value);
+  if (!stateButtonFormStudent.value) {
+    isFilterApplied.value = false;
+    resetForm();
+    getAllCalendars();
+  }
   
 };
 
@@ -140,15 +144,20 @@ const getTeachers = async () => {
 const searchCalendar = handleSubmit(async (formData) => {
 
   try {
-    
-    isFilterApplied.value = true;
-    const { chapter, teacher } = formData;
-      url.value = `${rootApi}/teacher/${teacher.Id}/calendar`;
-      ownerId.value = teacher.Id;
-  } catch (error) {
-    isFilterApplied.value = false;
-    toast.error("Không có khung giờ giảng viên!");
-  }
+        isFilterApplied.value = true;
+        const { course, chapter, teacher } = formData;
+
+        if (teacher === null) {
+            url.value = `${rootApi}/teacher/calendar/${course.id}/chapter/${chapter.id}/`;
+        } else {
+            url.value = `${rootApi}/teacher/${teacher.Id}/calendar`;
+            ownerId.value = teacher.Id;
+        }
+
+    } catch (error) {
+        isFilterApplied.value = false;
+        toast.error("Không có khung giờ giảng viên!");
+    }
 });
 
 
